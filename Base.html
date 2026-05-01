@@ -1,0 +1,1060 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Los Profetas — DB Viewer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a26;
+    --surface3: #22223a;
+    --border: rgba(120,100,255,0.15);
+    --border2: rgba(120,100,255,0.3);
+    --accent: #7c5cfa;
+    --accent2: #a78bfa;
+    --accent3: #c4b5fd;
+    --text: #f0edff;
+    --muted: #8880b0;
+    --muted2: #5a5480;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --info: #60a5fa;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(124,92,250,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 50% at 80% 80%, rgba(167,139,250,0.06) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-logo h1 {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent3));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+
+  .sidebar-logo p {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-weight: 300;
+  }
+
+  .sidebar-section {
+    padding: 16px 12px 8px;
+  }
+
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: var(--muted2);
+    text-transform: uppercase;
+    padding: 0 8px 8px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    margin-bottom: 2px;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active {
+    color: var(--accent3);
+    background: rgba(124,92,250,0.12);
+    border-color: rgba(124,92,250,0.2);
+  }
+
+  .nav-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    background: var(--surface3);
+  }
+
+  .nav-item.active .nav-icon { background: rgba(124,92,250,0.2); }
+
+  .nav-count {
+    margin-left: auto;
+    font-size: 10px;
+    font-family: var(--mono);
+    background: var(--surface3);
+    color: var(--muted);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .nav-item.active .nav-count {
+    background: rgba(124,92,250,0.2);
+    color: var(--accent3);
+  }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  .topbar {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(10,10,15,0.8);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .topbar-title { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .topbar-sub { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    width: 240px;
+    transition: border-color 0.15s;
+  }
+
+  .search-box:focus-within { border-color: var(--accent); }
+
+  .search-box input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    width: 100%;
+  }
+
+  .search-box input::placeholder { color: var(--muted2); }
+
+  .content { padding: 28px; flex: 1; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .stat-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .stat-card.purple::before { background: var(--accent); }
+  .stat-card.green::before { background: var(--success); }
+  .stat-card.amber::before { background: var(--warning); }
+  .stat-card.blue::before { background: var(--info); }
+
+  .stat-label { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 8px; font-family: var(--mono); }
+  .stat-value { font-size: 32px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+  .stat-card.purple .stat-value { color: var(--accent2); }
+  .stat-card.green .stat-value { color: var(--success); }
+  .stat-card.amber .stat-value { color: var(--warning); }
+  .stat-card.blue .stat-value { color: var(--info); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
+
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .table-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .table-title { font-size: 14px; font-weight: 600; }
+  .table-sub { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+  .table-actions { display: flex; gap: 8px; align-items: center; }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 7px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:hover { background: var(--surface2); color: var(--text); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #4ef07f; }
+
+  .filter-select {
+    font-family: var(--sans);
+    font-size: 12px;
+    padding: 7px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    background: rgba(26,26,38,0.5);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+
+  thead th:hover { color: var(--text); }
+  thead th.sorted { color: var(--accent2); }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(120,100,255,0.06);
+    transition: background 0.1s;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(124,92,250,0.04); }
+
+  td {
+    padding: 14px 16px;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+
+  td.mono { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--mono);
+  }
+
+  .badge-purple { background: rgba(124,92,250,0.15); color: var(--accent3); }
+  .badge-green { background: rgba(52,211,153,0.12); color: var(--success); }
+  .badge-amber { background: rgba(251,191,36,0.12); color: var(--warning); }
+  .badge-red { background: rgba(248,113,113,0.12); color: var(--danger); }
+  .badge-blue { background: rgba(96,165,250,0.12); color: var(--info); }
+  .badge-gray { background: rgba(120,100,255,0.06); color: var(--muted); }
+
+  .cell-user { display: flex; align-items: center; gap: 10px; }
+  .cell-user-name { font-weight: 500; font-size: 13px; }
+  .cell-user-email { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  .price { font-family: var(--mono); font-weight: 500; font-size: 13px; }
+  .price-eth { color: var(--accent2); }
+
+  .action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted2);
+    font-size: 16px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .action-btn:hover { color: var(--text); background: var(--surface3); }
+
+  .pagination {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .page-btns { display: flex; gap: 4px; }
+
+  .page-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--sans);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .page-btn:hover { background: var(--surface2); color: var(--text); }
+  .page-btn.active { background: rgba(124,92,250,0.2); border-color: var(--accent); color: var(--accent3); }
+
+  .sql-editor {
+    padding: 16px 20px;
+    background: #0d0d14;
+  }
+
+  .sql-editor textarea {
+    width: 100%;
+    background: none;
+    border: none;
+    outline: none;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent3);
+    resize: none;
+    line-height: 1.6;
+    min-height: 80px;
+  }
+
+  .schema-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+  .schema-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .schema-card-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(124,92,250,0.05);
+  }
+
+  .schema-table-name { font-size: 13px; font-weight: 700; font-family: var(--mono); color: var(--accent2); }
+  .schema-col-count { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  .schema-fields { padding: 8px 0; }
+
+  .schema-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 16px;
+    border-bottom: 1px solid rgba(120,100,255,0.05);
+    font-size: 12px;
+  }
+
+  .schema-field:last-child { border-bottom: none; }
+  .schema-field-name { font-family: var(--mono); color: var(--text); }
+  .schema-field-type { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .tab {
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .insights-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+  .insight-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .insight-card-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 16px;
+  }
+
+  .trend-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .trend-label { font-size: 12px; color: var(--text); min-width: 80px; font-family: var(--mono); }
+  .trend-track { flex: 1; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+  .trend-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .trend-val { font-size: 11px; color: var(--muted); font-family: var(--mono); min-width: 40px; text-align: right; }
+
+  .empty { text-align: center; padding: 48px 20px; color: var(--muted2); }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-text { font-size: 14px; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    color: var(--text);
+    z-index: 999;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(124,92,250,0.2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(124,92,250,0.4); }
+
+  @media (max-width: 900px) {
+    .sidebar { width: 60px; }
+    .sidebar-logo p, .nav-item span, .nav-count, .sidebar-label { display: none; }
+    .nav-item { justify-content: center; padding: 10px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .schema-grid { grid-template-columns: 1fr; }
+    .insights-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>Gachatek Art</h1>
+      <p>NFT Market DB</p>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Tablas</div>
+      <div class="nav-item active" onclick="showTable('usuarios')">
+        <div class="nav-icon">👤</div>
+        <span>usuarios</span>
+        <div class="nav-count" id="cnt-usuarios">0</div>
+      </div>
+      <div class="nav-item" onclick="showTable('nfts')">
+        <div class="nav-icon">🖼</div>
+        <span>nfts</span>
+        <div class="nav-count" id="cnt-nfts">0</div>
+      </div>
+      <div class="nav-item" onclick="showTable('transacciones')">
+        <div class="nav-icon">💸</div>
+        <span>transacciones</span>
+        <div class="nav-count" id="cnt-transacciones">0</div>
+      </div>
+      <div class="nav-item" onclick="showTable('ofertas')">
+        <div class="nav-icon">🤝</div>
+        <span>ofertas</span>
+        <div class="nav-count" id="cnt-ofertas">0</div>
+      </div>
+      <div class="nav-item" onclick="showTable('comentarios')">
+        <div class="nav-icon">💬</div>
+        <span>comentarios</span>
+        <div class="nav-count" id="cnt-comentarios">0</div>
+      </div>
+      <div class="nav-item" onclick="showTable('favoritos')">
+        <div class="nav-icon">❤️</div>
+        <span>favoritos</span>
+        <div class="nav-count" id="cnt-favoritos">0</div>
+      </div>
+      <div class="nav-item" onclick="showTable('notificaciones')">
+        <div class="nav-icon">🔔</div>
+        <span>notificaciones</span>
+        <div class="nav-count" id="cnt-notificaciones">0</div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Vistas</div>
+      <div class="nav-item" onclick="switchSection('schema')">
+        <div class="nav-icon">📋</div>
+        <span>Esquema</span>
+      </div>
+      <div class="nav-item" onclick="switchSection('sql')">
+        <div class="nav-icon">⌨️</div>
+        <span>SQL Query</span>
+      </div>
+      <div class="nav-item" onclick="switchSection('insights')">
+        <div class="nav-icon">🧠</div>
+        <span>ML Insights</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Tabla: usuarios</div>
+        <div class="topbar-sub" id="topbar-sub">losprofetas.db · SQLite3</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="search-box">
+          <span style="color:var(--muted);font-size:14px;">🔍</span>
+          <input type="text" placeholder="Buscar registros..." id="search-input" oninput="filterTable()">
+        </div>
+        <button class="btn primary" onclick="document.getElementById('file-input').click()">
+          📂 Cargar .db
+        </button>
+        <input type="file" id="file-input" accept=".db,.sqlite,.sqlite3" style="display:none" onchange="loadFile(this)">
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="stats-row">
+        <div class="stat-card purple">
+          <div class="stat-label">TOTAL NFTs</div>
+          <div class="stat-value" id="stat-nfts">—</div>
+          <div class="stat-sub">obras registradas</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">USUARIOS</div>
+          <div class="stat-value" id="stat-usuarios">—</div>
+          <div class="stat-sub">artistas y coleccionistas</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">VOLUMEN ETH</div>
+          <div class="stat-value" id="stat-volumen">—</div>
+          <div class="stat-sub">total transacciones</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">TRANSACCIONES</div>
+          <div class="stat-value" id="stat-txs">—</div>
+          <div class="stat-sub">operaciones completadas</div>
+        </div>
+      </div>
+
+      <div class="section active" id="section-table">
+        <div class="table-wrap">
+          <div class="table-header">
+            <div>
+              <div class="table-title" id="t-title">usuarios</div>
+              <div class="table-sub" id="t-sub">— registros</div>
+            </div>
+            <div class="table-actions">
+              <select class="filter-select" id="category-filter" onchange="filterTable()" style="display:none">
+                <option value="">Todas las categorías</option>
+              </select>
+              <button class="btn" onclick="exportCSV()">⬇ CSV</button>
+              <button class="btn" onclick="exportJSON()">⬇ JSON</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table id="data-table">
+              <thead><tr id="table-head"></tr></thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span id="page-info">Mostrando 0 de 0 registros</span>
+            <div class="page-btns" id="page-btns"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="section-schema">
+        <div class="schema-grid" id="schema-grid"></div>
+      </div>
+
+      <div class="section" id="section-sql">
+        <div class="table-wrap" style="margin-bottom:20px;">
+          <div class="table-header">
+            <div>
+              <div class="table-title">Editor SQL</div>
+              <div class="table-sub">Consultas directas a la base de datos</div>
+            </div>
+            <button class="btn primary" onclick="runSQL()">▶ Ejecutar</button>
+          </div>
+          <div class="sql-editor">
+            <textarea id="sql-input" rows="5">SELECT * FROM nfts ORDER BY precio DESC LIMIT 20;</textarea>
+          </div>
+        </div>
+        <div class="table-wrap" id="sql-results" style="display:none">
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr id="sql-head"></tr></thead>
+              <tbody id="sql-body"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span id="sql-info">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="section-insights">
+        <div class="insights-grid">
+          <div class="insight-card">
+            <div class="insight-card-title">📊 Distribución por Categoría</div>
+            <div id="insight-categorias"></div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-card-title">💰 Precio Promedio por Categoría (ETH)</div>
+            <div id="insight-precios"></div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-card-title">❤️ NFTs más populares (likes)</div>
+            <div id="insight-likes"></div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-card-title">🔄 Actividad de Transacciones</div>
+            <div id="insight-txs"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script>
+let db = null;
+let currentTable = 'usuarios';
+let currentData = [];
+let filteredData = [];
+let currentPage = 1;
+const PAGE_SIZE = 25;
+let sortCol = null;
+let sortDir = 'asc';
+
+const SCHEMA = {
+  usuarios: { fields: [{name:'id',type:'TEXT',pk:true},{name:'username',type:'TEXT'},{name:'email',type:'TEXT'},{name:'password_hash',type:'TEXT'},{name:'nombre',type:'TEXT'},{name:'bio',type:'TEXT'},{name:'avatar_b64',type:'TEXT'},{name:'fecha_registro',type:'TIMESTAMP'},{name:'activo',type:'INTEGER'}] },
+  nfts: { fields: [{name:'id',type:'INTEGER',pk:true},{name:'titulo',type:'TEXT'},{name:'descripcion',type:'TEXT'},{name:'artista_id',type:'TEXT',fk:'usuarios.id'},{name:'precio',type:'REAL'},{name:'categoria',type:'TEXT'},{name:'tags',type:'TEXT (JSON)'},{name:'likes',type:'INTEGER'},{name:'regalias',type:'REAL'},{name:'fecha_creacion',type:'TIMESTAMP'}] },
+  transacciones: { fields: [{name:'id',type:'INTEGER',pk:true},{name:'nft_id',type:'INTEGER',fk:'nfts.id'},{name:'vendedor_id',type:'TEXT',fk:'usuarios.id'},{name:'comprador_id',type:'TEXT',fk:'usuarios.id'},{name:'cantidad',type:'REAL'},{name:'tipo',type:'TEXT'},{name:'estado',type:'TEXT'},{name:'fecha',type:'TIMESTAMP'}] },
+  ofertas: { fields: [{name:'id',type:'INTEGER',pk:true},{name:'nft_id',type:'INTEGER',fk:'nfts.id'},{name:'usuario_id',type:'TEXT',fk:'usuarios.id'},{name:'monto',type:'REAL'},{name:'mensaje',type:'TEXT'},{name:'estado',type:'TEXT'},{name:'fecha_creacion',type:'TIMESTAMP'}] },
+  comentarios: { fields: [{name:'id',type:'INTEGER',pk:true},{name:'nft_id',type:'INTEGER',fk:'nfts.id'},{name:'usuario_id',type:'TEXT',fk:'usuarios.id'},{name:'contenido',type:'TEXT'},{name:'likes',type:'INTEGER'},{name:'fecha_creacion',type:'TIMESTAMP'}] },
+  favoritos: { fields: [{name:'id',type:'INTEGER',pk:true},{name:'usuario_id',type:'TEXT',fk:'usuarios.id'},{name:'nft_id',type:'INTEGER',fk:'nfts.id'},{name:'fecha_creacion',type:'TIMESTAMP'}] },
+  notificaciones: { fields: [{name:'id',type:'INTEGER',pk:true},{name:'usuario_id',type:'TEXT',fk:'usuarios.id'},{name:'titulo',type:'TEXT'},{name:'mensaje',type:'TEXT'},{name:'tipo',type:'TEXT'},{name:'leida',type:'INTEGER'},{name:'fecha',type:'TIMESTAMP'}] },
+  configuracion: { fields: [{name:'id',type:'INTEGER',pk:true},{name:'usuario_id',type:'TEXT',fk:'usuarios.id'},{name:'tema',type:'TEXT'},{name:'idioma',type:'TEXT'},{name:'moneda',type:'TEXT'},{name:'notificaciones',type:'INTEGER'}] }
+};
+
+let SQL;
+initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` }).then(sql => {
+  SQL = sql;
+  toast('✓ Motor SQLite listo. Carga tu archivo .db');
+  renderSchema();
+}).catch(e => toast('Error: ' + e.message));
+
+function loadFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      db = new SQL.Database(new Uint8Array(e.target.result));
+      toast('✓ Cargado: ' + file.name);
+      loadStats();
+      showTable(currentTable);
+      loadInsights();
+    } catch(err) { toast('❌ Error: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function query(sql, params) {
+  if (!db) return [];
+  try {
+    const stmt = db.prepare(sql);
+    if (params) stmt.bind(params);
+    const rows = [];
+    while (stmt.step()) rows.push(stmt.getAsObject());
+    stmt.free();
+    return rows;
+  } catch(e) { return []; }
+}
+
+function queryValue(sql) {
+  const r = query(sql);
+  if (!r.length) return '—';
+  return Object.values(r[0])[0] ?? '—';
+}
+
+function loadStats() {
+  ['usuarios','nfts','transacciones','ofertas','comentarios','favoritos','notificaciones'].forEach(t => {
+    const el = document.getElementById('cnt-' + t);
+    if (el) el.textContent = queryValue(`SELECT COUNT(*) FROM ${t}`) || '0';
+  });
+  document.getElementById('stat-nfts').textContent = queryValue('SELECT COUNT(*) FROM nfts');
+  document.getElementById('stat-usuarios').textContent = queryValue('SELECT COUNT(*) FROM usuarios');
+  document.getElementById('stat-volumen').textContent = queryValue('SELECT ROUND(SUM(cantidad),2) FROM transacciones') || '0';
+  document.getElementById('stat-txs').textContent = queryValue('SELECT COUNT(*) FROM transacciones');
+}
+
+function showTable(table) {
+  currentTable = table;
+  currentPage = 1;
+  sortCol = null;
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  const tables = ['usuarios','nfts','transacciones','ofertas','comentarios','favoritos','notificaciones'];
+  const idx = tables.indexOf(table);
+  if (idx >= 0) document.querySelectorAll('.nav-item')[idx].classList.add('active');
+  switchSection('table');
+  document.getElementById('topbar-title').textContent = 'Tabla: ' + table;
+  document.getElementById('t-title').textContent = table;
+
+  if (!db) { renderEmpty(); return; }
+
+  currentData = query(`SELECT * FROM ${table} LIMIT 2000`);
+  filteredData = [...currentData];
+  document.getElementById('t-sub').textContent = `${queryValue(`SELECT COUNT(*) FROM ${table}`)} registros totales`;
+
+  const catFilter = document.getElementById('category-filter');
+  if (table === 'nfts') {
+    catFilter.style.display = 'block';
+    catFilter.innerHTML = '<option value="">Todas las categorías</option>';
+    query('SELECT DISTINCT categoria FROM nfts ORDER BY categoria').forEach(c => {
+      const o = document.createElement('option');
+      o.value = o.textContent = c.categoria;
+      catFilter.appendChild(o);
+    });
+  } else {
+    catFilter.style.display = 'none';
+    catFilter.value = '';
+  }
+  renderTable();
+}
+
+function renderTable() {
+  if (!filteredData.length) { renderEmpty(); return; }
+  const cols = Object.keys(filteredData[0]);
+  document.getElementById('table-head').innerHTML = cols.map(c =>
+    `<th onclick="sortBy('${c}')" class="${sortCol===c?'sorted':''}">${c}${sortCol===c?(sortDir==='asc'?' ↑':' ↓'):''}</th>`
+  ).join('') + '<th>—</th>';
+
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = filteredData.slice(start, start + PAGE_SIZE);
+  document.getElementById('table-body').innerHTML = pageData.map((row, i) =>
+    `<tr>${cols.map(c => renderCell(c, row[c])).join('')}<td><button class="action-btn" onclick="copyRow(${start+i})">⎘</button></td></tr>`
+  ).join('');
+
+  document.getElementById('page-info').textContent =
+    `Mostrando ${Math.min(start+1,filteredData.length)}–${Math.min(start+PAGE_SIZE,filteredData.length)} de ${filteredData.length}`;
+  renderPagination();
+}
+
+function renderCell(col, val) {
+  if (val === null || val === undefined) return `<td class="mono" style="color:var(--muted2)">NULL</td>`;
+  const s = String(val);
+  if (['precio','cantidad','monto'].includes(col)) return `<td><span class="price price-eth">${parseFloat(s).toFixed(4)} Ξ</span></td>`;
+  if (col === 'email') return `<td class="mono" style="color:var(--muted)">${s}</td>`;
+  if (col === 'password_hash') return `<td class="mono" style="color:var(--muted2)">${s.slice(0,16)}…</td>`;
+  if (['avatar_b64','imagen_b64'].includes(col)) return s.length > 10 ? `<td><span class="badge badge-gray">base64</span></td>` : `<td class="mono" style="color:var(--muted2)">NULL</td>`;
+  if (col === 'tags') {
+    try {
+      const tags = JSON.parse(s);
+      if (Array.isArray(tags) && tags.length)
+        return `<td>${tags.slice(0,3).map(t=>`<span class="badge badge-purple" style="margin:1px">${t}</span>`).join('')}${tags.length>3?`<span class="badge badge-gray">+${tags.length-3}</span>`:''}</td>`;
+    } catch(e) {}
+    return `<td class="mono" style="color:var(--muted2)">[]</td>`;
+  }
+  if (col === 'categoria') {
+    const m = {arte:'badge-purple',musica:'badge-blue',gaming:'badge-green',coleccionables:'badge-amber',deporte:'badge-red'};
+    return `<td><span class="badge ${m[s.toLowerCase()]||'badge-gray'}">${s}</span></td>`;
+  }
+  if (col === 'estado') {
+    const m = {completada:'badge-green',pendiente:'badge-amber',rechazada:'badge-red',activa:'badge-blue'};
+    return `<td><span class="badge ${m[s]||'badge-gray'}">${s}</span></td>`;
+  }
+  if (col === 'tipo') return `<td><span class="badge badge-blue">${s}</span></td>`;
+  if (['leida','activo','notificaciones'].includes(col)) return `<td><span class="badge ${s==='1'?'badge-green':'badge-gray'}">${s==='1'?'sí':'no'}</span></td>`;
+  if (col === 'likes') return `<td><span style="color:var(--danger)">❤ ${s}</span></td>`;
+  if (col.includes('fecha') || col === 'fecha') return `<td class="mono" style="font-size:12px;color:var(--muted)">${s.split('T')[0]}</td>`;
+  if (col === 'id' && s.length > 20) return `<td class="mono" style="color:var(--muted2)" title="${s}">${s.slice(0,12)}…</td>`;
+  if (s.length > 60) return `<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.replace(/"/g,'&quot;')}">${s}</td>`;
+  return `<td>${s}</td>`;
+}
+
+function renderEmpty() {
+  document.getElementById('table-head').innerHTML = '';
+  document.getElementById('table-body').innerHTML = `<tr><td colspan="99"><div class="empty"><div class="empty-icon">📂</div><div class="empty-text">${db?'Sin registros':'Carga un archivo .db para comenzar'}</div></div></td></tr>`;
+  document.getElementById('page-btns').innerHTML = '';
+}
+
+function renderPagination() {
+  const total = Math.ceil(filteredData.length / PAGE_SIZE);
+  const btns = document.getElementById('page-btns');
+  btns.innerHTML = '';
+  const prev = document.createElement('button');
+  prev.className = 'page-btn'; prev.textContent = '‹';
+  prev.onclick = () => { if (currentPage > 1) { currentPage--; renderTable(); } };
+  btns.appendChild(prev);
+  for (let i = Math.max(1,currentPage-2); i <= Math.min(total,currentPage+2); i++) {
+    const b = document.createElement('button');
+    b.className = 'page-btn' + (i===currentPage?' active':'');
+    b.textContent = i;
+    b.onclick = ((p) => () => { currentPage=p; renderTable(); })(i);
+    btns.appendChild(b);
+  }
+  const next = document.createElement('button');
+  next.className = 'page-btn'; next.textContent = '›';
+  next.onclick = () => { if (currentPage < total) { currentPage++; renderTable(); } };
+  btns.appendChild(next);
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortCol = col; sortDir = 'asc'; }
+  filteredData.sort((a, b) => {
+    const va = a[col]??'', vb = b[col]??'';
+    const cmp = typeof va==='number' ? va-vb : String(va).localeCompare(String(vb));
+    return sortDir==='asc' ? cmp : -cmp;
+  });
+  currentPage = 1;
+  renderTable();
+}
+
+function filterTable() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const cat = document.getElementById('category-filter').value;
+  filteredData = currentData.filter(row => {
+    const mQ = !q || Object.values(row).some(v => v!==null && String(v).toLowerCase().includes(q));
+    const mC = !cat || row.categoria === cat;
+    return mQ && mC;
+  });
+  currentPage = 1;
+  renderTable();
+}
+
+function runSQL() {
+  if (!db) { toast('❌ Carga primero una base de datos'); return; }
+  const sql = document.getElementById('sql-input').value.trim();
+  if (!sql) return;
+  try {
+    const rows = query(sql);
+    document.getElementById('sql-results').style.display = 'block';
+    document.getElementById('sql-info').textContent = `${rows.length} filas`;
+    if (!rows.length) {
+      document.getElementById('sql-head').innerHTML = '';
+      document.getElementById('sql-body').innerHTML = '<tr><td><div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Sin resultados</div></div></td></tr>';
+      return;
+    }
+    const cols = Object.keys(rows[0]);
+    document.getElementById('sql-head').innerHTML = cols.map(c=>`<th>${c}</th>`).join('');
+    document.getElementById('sql-body').innerHTML = rows.slice(0,200).map(r=>
+      `<tr>${cols.map(c=>`<td>${r[c]??'NULL'}</td>`).join('')}</tr>`
+    ).join('');
+    toast(`✓ ${rows.length} filas`);
+  } catch(e) { toast('❌ ' + e.message); }
+}
+
+function renderSchema() {
+  document.getElementById('schema-grid').innerHTML = Object.entries(SCHEMA).map(([name, info]) => `
+    <div class="schema-card">
+      <div class="schema-card-header">
+        <span class="schema-table-name">${name}</span>
+        <span class="schema-col-count">${info.fields.length} cols</span>
+      </div>
+      <div class="schema-fields">
+        ${info.fields.map(f=>`
+          <div class="schema-field">
+            <div style="display:flex;align-items:center;gap:6px">
+              ${f.pk?'<span class="badge badge-amber" style="font-size:9px;padding:1px 5px">PK</span>':''}
+              ${f.fk?'<span class="badge badge-blue" style="font-size:9px;padding:1px 5px">FK</span>':''}
+              <span class="schema-field-name">${f.name}</span>
+            </div>
+            <span class="schema-field-type">${f.type}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function loadInsights() {
+  if (!db) return;
+  const colors = ['#7c5cfa','#60a5fa','#34d399','#fbbf24','#f87171','#e879f9'];
+
+  const cats = query('SELECT categoria, COUNT(*) as cnt FROM nfts GROUP BY categoria ORDER BY cnt DESC');
+  const maxC = cats.length ? Math.max(...cats.map(c=>c.cnt)) : 1;
+  document.getElementById('insight-categorias').innerHTML = cats.length ? cats.map((c,i)=>`
+    <div class="trend-bar">
+      <div class="trend-label">${c.categoria}</div>
+      <div class="trend-track"><div class="trend-fill" style="width:${(c.cnt/maxC*100).toFixed(0)}%;background:${colors[i%colors.length]}"></div></div>
+      <div class="trend-val">${c.cnt}</div>
+    </div>`).join('') : '<div style="color:var(--muted2);font-size:13px">Sin datos</div>';
+
+  const precios = query('SELECT categoria, ROUND(AVG(precio),3) as avg FROM nfts GROUP BY categoria ORDER BY avg DESC');
+  const maxP = precios.length ? Math.max(...precios.map(p=>p.avg)) : 1;
+  document.getElementById('insight-precios').innerHTML = precios.length ? precios.map((p,i)=>`
+    <div class="trend-bar">
+      <div class="trend-label">${p.categoria}</div>
+      <div class="trend-track"><div class="trend-fill" style="width:${(p.avg/maxP*100).toFixed(0)}%;background:${colors[i%colors.length]}"></div></div>
+      <div class="trend-val">${p.avg} Ξ</div>
+    </div>`).join('') : '<div style="color:var(--muted2);font-size:13px">Sin datos</div>';
+
+  const likes = query('SELECT titulo, likes FROM nfts ORDER BY likes DESC LIMIT 8');
+  const maxL = likes.length ? Math.max(...likes.map(l=>l.likes||0)) : 1;
+  document.getElementById('insight-likes').innerHTML = likes.length ? likes.map((l,i)=>`
+    <div class="trend-bar">
+      <div class="trend-label" style="font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.titulo}">${l.titulo}</div>
+      <div class="trend-track"><div class="trend-fill" style="width:${((l.likes||0)/maxL*100).toFixed(0)}%;background:var(--danger)"></div></div>
+      <div class="trend-val">${l.likes||0}</div>
+    </div>`).join('') : '<div style="color:var(--muted2);font-size:13px">Sin datos</div>';
+
+  const txs = query('SELECT tipo, COUNT(*) as cnt, ROUND(SUM(cantidad),2) as vol FROM transacciones GROUP BY tipo');
+  const maxT = txs.length ? Math.max(...txs.map(t=>t.cnt)) : 1;
+  document.getElementById('insight-txs').innerHTML = txs.length ? txs.map((t,i)=>`
+    <div class="trend-bar">
+      <div class="trend-label">${t.tipo}</div>
+      <div class="trend-track"><div class="trend-fill" style="width:${(t.cnt/maxT*100).toFixed(0)}%;background:${colors[i%colors.length]}"></div></div>
+      <div class="trend-val">${t.cnt} · ${t.vol} Ξ</div>
+    </div>`).join('') : '<div style="color:var(--muted2);font-size:13px">Sin transacciones</div>';
+}
+
+function switchSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  const titles = { table:'Tabla: '+currentTable, schema:'Esquema de base de datos', sql:'Editor SQL', insights:'ML Insights' };
+  const subs = { table:'losprofetas.db · SQLite3', schema:'8 tablas definidas', sql:'Consultas directas SQLite3', insights:'Análisis automático del mercado' };
+  document.getElementById('topbar-title').textContent = titles[name] || name;
+  document.getElementById('topbar-sub').textContent = subs[name] || '';
+  if (name === 'insights') loadInsights();
+  if (name === 'table') showTable(currentTable);
+}
+
+function exportCSV() {
+  if (!filteredData.length) { toast('Sin datos'); return; }
+  const cols = Object.keys(filteredData[0]);
+  const csv = [cols.join(','), ...filteredData.map(r=>cols.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\n');
+  download(csv, currentTable+'.csv', 'text/csv');
+}
+
+function exportJSON() {
+  if (!filteredData.length) { toast('Sin datos'); return; }
+  download(JSON.stringify(filteredData,null,2), currentTable+'.json', 'application/json');
+}
+
+function download(content, filename, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content],{type}));
+  a.download = filename; a.click();
+  toast('✓ Exportado: ' + filename);
+}
+
+function copyRow(idx) {
+  navigator.clipboard.writeText(JSON.stringify(filteredData[idx],null,2));
+  toast('✓ Fila copiada');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+renderSchema();
+renderEmpty();
+</script>
+</body>
+</html>
